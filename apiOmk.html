@@ -1,150 +1,139 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>API Omeka S – Gestion des Ressources Culturelles</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    section { margin-bottom: 30px; }
-    input, button, textarea, select { margin: 5px 0; width: 100%; max-width: 500px; }
-    label { font-weight: bold; display: block; margin-top: 10px; }
-    .response { margin-top: 20px; white-space: pre-wrap; background: #f4f4f4; padding: 10px; border: 1px solid #ccc; }
-  </style>
+    <meta charset="UTF-8">
+    <title>API Omeka S — Gestion des Ressources Culturelles + Audio/Video</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f7f3e9; padding: 20px; }
+        h1, h2 { color: #6d4c41; }
+        .box { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 5px #ccc; margin-bottom: 20px; }
+        input, select, button { padding: 8px; margin: 5px 0; }
+        button { background: #795548; color: white; border: none; cursor: pointer; }
+        button:hover { background: #5d4037; }
+        pre { background: #eee; padding: 10px; border-radius: 5px; }
+    </style>
 </head>
 <body>
-  <h1>API Omeka S – Gestion des Ressources Culturelles</h1>
 
-  <!-- Lecture d'une ressource -->
-  <section>
-    <h2>1. Lecture d'une ressource</h2>
-    <label for="readType">Type de ressource :</label>
-    <select id="readType">
-      <option value="items">Document</option>
-      <option value="events">Événement</option>
-      <option value="places">Lieu</option>
-      <option value="users">Utilisateur</option>
-      <option value="projects">Projet</option>
+<h1> API Omeka S — Gestion des Ressources Culturelles + Audio/Video</h1>
+
+<!-- Paramètres API -->
+<div class="box">
+    <h2> Paramètres API</h2>
+    <label>URL Omeka S :</label><br>
+    <input id="omkUrl" size="60" value="http://localhost/omekas/api/"><br>
+    <label>Clé API :</label><br>
+    <input id="apiKey" size="60" value="cJtHjx5XTjh4fM7qqnmLT2fj5DgPqvrW">
+</div>
+
+<!-- Choisir une ressource -->
+<div class="box">
+    <h2> Choisir une ressource</h2>
+    <select id="resourceType">
+        <option value="items?resource_template_id=4">Document</option>
+        <option value="items?resource_template_id=7">Événement</option>
+        <option value="items?resource_template_id=6">Lieu</option>
+        <option value="items?resource_template_id=5">Projet</option>
+        <option value="items?resource_template_id=3">Utilisateur</option>
     </select>
-    <label for="readId">ID de la ressource :</label>
-    <input type="number" id="readId" placeholder="Ex : 5">
-    <button id="btnRead">Lire la ressource</button>
-  </section>
+    <br><br>
+    <button onclick="charger()"> Charger les données</button>
+</div>
 
-  <!-- Création d'une ressource -->
-  <section>
-    <h2>2. Création d'une ressource</h2>
-    <label for="createType">Type de ressource :</label>
-    <select id="createType">
-      <option value="items">Document</option>
-      <option value="events">Événement</option>
-      <option value="places">Lieu</option>
-      <option value="users">Utilisateur</option>
-      <option value="projects">Projet</option>
-    </select>
+<!-- Affichage résultat -->
+<div class="box">
+    <h2> Résultat API</h2>
+    <pre id="resultat">...</pre>
+</div>
 
-    <div id="fieldsContainer">
-      <!-- Champs spécifiques seront injectés ici -->
-    </div>
-
-    <button id="btnCreate">Créer la ressource</button>
-  </section>
-
-  <div class="response" id="apiResponse">Réponse de l’API …</div>
+<!-- Ajouter une ressource -->
+<div class="box">
+    <h2>➕ Ajouter une nouvelle ressource</h2>
+    <label>Titre :</label><br>
+    <input id="titre" size="50"><br>
+    <label>Description :</label><br>
+    <input id="description" size="50"><br>
+    <label>Auteur :</label><br>
+    <input id="auteur" size="50"><br>
+    <label>Date de création :</label><br>
+    <input id="date_creation" type="date"><br>
+    <label>Est lié à (ID) :</label><br>
+    <input id="estLie" size="50"><br>
+    <label>Fichier audio :</label><br>
+    <input type="file" id="audioFile" accept="audio/*"><br>
+    <label>Fichier vidéo :</label><br>
+    <input type="file" id="videoFile" accept="video/*"><br><br>
+    <button onclick="ajouter()"> Envoyer à Omeka</button>
+</div>
 
 <script>
-const apiBase = 'http://localhost/omekas/api'; // Remplace par ton URL Omeka S
+// Charger les ressources
+function charger() {
+    const url = document.getElementById("omkUrl").value;
+    const key = document.getElementById("apiKey").value;
+    const type = document.getElementById("resourceType").value;
 
-// Champs pour chaque type de ressource
-const resourceFields = {
-  items: [
-    { label: "Titre du document", id: "doc_title", type: "text" },
-    { label: "Type de document", id: "doc_type", type: "text" },
-    { label: "URL du document", id: "doc_url", type: "text" },
-    { label: "Statut de validation", id: "doc_status", type: "text" }
-  ],
-  events: [
-    { label: "Nom de l'événement", id: "event_name", type: "text" },
-    { label: "Date", id: "event_date", type: "date" },
-    { label: "Lieu", id: "event_place", type: "text" },
-    { label: "Description", id: "event_desc", type: "text" }
-  ],
-  places: [
-    { label: "Nom du lieu", id: "place_name", type: "text" },
-    { label: "Adresse", id: "place_address", type: "text" },
-    { label: "Description", id: "place_desc", type: "text" }
-  ],
-  users: [
-    { label: "Nom", id: "user_name", type: "text" },
-    { label: "Prénom", id: "user_firstname", type: "text" },
-    { label: "Email", id: "user_email", type: "text" },
-    { label: "Mot de passe", id: "user_password", type: "password" }
-  ],
-  projects: [
-    { label: "Nom du projet", id: "proj_name", type: "text" },
-    { label: "Description", id: "proj_desc", type: "text" },
-    { label: "Responsable", id: "proj_responsible", type: "text" }
-  ]
-};
-
-// Fonction pour créer les champs dynamiquement
-const fieldsContainer = document.getElementById('fieldsContainer');
-const createTypeSelect = document.getElementById('createType');
-
-function renderFields(type) {
-  fieldsContainer.innerHTML = "";
-  resourceFields[type].forEach(f => {
-    const label = document.createElement("label");
-    label.textContent = f.label;
-    const input = document.createElement("input");
-    input.type = f.type;
-    input.id = f.id;
-    fieldsContainer.appendChild(label);
-    fieldsContainer.appendChild(input);
-  });
+    fetch(url + type, { headers: { "Authorization": "Bearer " + key } })
+        .then(res => res.json())
+        .then(data => { document.getElementById("resultat").textContent = JSON.stringify(data, null, 2); })
+        .catch(err => { document.getElementById("resultat").textContent = "Erreur : " + err; });
 }
 
-createTypeSelect.addEventListener("change", () => renderFields(createTypeSelect.value));
-renderFields(createTypeSelect.value);
+// Ajouter une ressource + fichiers
+function ajouter() {
+    const url = document.getElementById("omkUrl").value + "items";
+    const key = document.getElementById("apiKey").value;
+    const type = document.getElementById("resourceType").value;
+    const templateId = type.split("=")[1];
 
-// Lecture d'une ressource
-document.getElementById('btnRead').addEventListener('click', async () => {
-  const type = document.getElementById('readType').value;
-  const id = document.getElementById('readId').value;
-  try {
-    const resp = await fetch(`${apiBase}/${type}/${id}`);
-    if (!resp.ok) throw new Error('Erreur HTTP ' + resp.status);
-    const data = await resp.json();
-    document.getElementById('apiResponse').textContent = JSON.stringify(data, null, 2);
-  } catch(err) {
-    document.getElementById('apiResponse').textContent = 'Erreur : ' + err;
-  }
-});
+    const data = {
+        "o:resource_template": { "o:id": templateId },
+        "o:title": document.getElementById("titre").value,
+        "dcterms:description": [{ "type": "literal", "property_id": 4, "value": document.getElementById("description").value }],
+        "dcterms:creator": [{ "type": "literal", "property_id": 3, "value": document.getElementById("auteur").value }],
+        "dcterms:created": [{ "type": "literal", "property_id": 5, "value": document.getElementById("date_creation").value }],
+        "o:relation": [{ "type": "literal", "property_id": 6, "value": document.getElementById("estLie").value }]
+    };
 
-// Création d'une ressource
-document.getElementById('btnCreate').addEventListener('click', async () => {
-  const type = createTypeSelect.value;
-  const body = {};
-  resourceFields[type].forEach(f => {
-    const value = document.getElementById(f.id).value;
-    if(value) body[f.id] = value;
-  });
+    // Créer la ressource
+    fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + key },
+        body: JSON.stringify(data)
+    })
+    .then(res => res.json())
+    .then(item => {
+        // Ajouter les fichiers audio/vidéo si présents
+        const fichiers = [
+            { inputId: "audioFile" },
+            { inputId: "videoFile" }
+        ];
 
-  try {
-    const resp = await fetch(`${apiBase}/${type}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-        // 'Authorization': 'Bearer VOTRE_TOKEN' si nécessaire
-      },
-      body: JSON.stringify(body)
-    });
-    if (!resp.ok) throw new Error('Erreur HTTP ' + resp.status);
-    const data = await resp.json();
-    document.getElementById('apiResponse').textContent = JSON.stringify(data, null, 2);
-  } catch(err) {
-    document.getElementById('apiResponse').textContent = 'Erreur : ' + err;
-  }
-});
+        fichiers.forEach(f => {
+            const fileInput = document.getElementById(f.inputId);
+            if (fileInput.files.length > 0) {
+                const formData = new FormData();
+                formData.append("file", fileInput.files[0]);
+                formData.append("o:owner", "1"); // ID du propriétaire
+
+                fetch(url + "/" + item["o:id"] + "/media", {
+                    method: "POST",
+                    headers: { "Authorization": "Bearer " + key },
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(media => { 
+                    document.getElementById("resultat").textContent += "\n\nFichier ajouté : " + JSON.stringify(media, null, 2);
+                })
+                .catch(err => { document.getElementById("resultat").textContent += "\n\nErreur fichier : " + err; });
+            }
+        });
+
+        document.getElementById("resultat").textContent += "\n\nRessource créée : " + JSON.stringify(item, null, 2);
+    })
+    .catch(err => { document.getElementById("resultat").textContent = "Erreur : " + err; });
+}
 </script>
+
 </body>
 </html>
